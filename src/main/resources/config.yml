@@ -1,0 +1,58 @@
+# Commands and Permissions
+
+# /SellSpawner: Sell the spawner you are holding
+# /SpValue: Check the value of the spawner you are holding
+
+# mlmlspawnersell.sell
+# mlmlspawnersell.value
+
+PIG:
+  - 25000
+SHEEP:
+  - 56250
+CREAKING:
+  - 56250
+COW:
+  - 62500
+CHICKEN:
+  - 37500
+BEE:
+  - 37500
+ZOMBIE:
+  - 75000
+SPIDER:
+  - 77500
+SKELETON:
+  - 87500
+CREEPER:
+  - 100000
+PANDA:
+  - 112500
+BLAZE:
+  - 125000
+RABBIT:
+  - 125000
+HOGLIN:
+  - 150000
+PIGLIN:
+  - 162500
+ENDERMAN:
+  - 175000
+TURTLE:
+  - 200000
+IRON_GOLEM:
+  - 212500
+HUSK:
+  - 625000
+SILVERFISH:
+  - 875000
+LLAMA:
+  - 1437500
+POLAR_BEAR:
+  - 1500000
+TADPOLE:
+  - 25000
+AXOLOTL:
+  - 25000
+VILLAGER:
+  - 25000

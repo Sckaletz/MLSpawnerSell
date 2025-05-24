@@ -1,0 +1,21 @@
+name: MLSpawnerSell
+version: '1.0'
+main: eu.minelife.mLSpawnerSell.MLSpawnerSell
+api-version: '1.21'
+depend: [Vault, WildStacker]
+commands:
+  sellspawner:
+    description: Sell the spawner you are holding
+    usage: /sellspawner
+    permission: mlspawnersell.sell
+  spvalue:
+    description: Check the value of the spawner you are holding
+    usage: /spvalue
+    permission: mlspawnersell.value
+permissions:
+  mlspawnersell.sell:
+    description: Allows players to sell spawners
+    default: true
+  mlspawnersell.value:
+    description: Allows players to check spawner values
+    default: true
