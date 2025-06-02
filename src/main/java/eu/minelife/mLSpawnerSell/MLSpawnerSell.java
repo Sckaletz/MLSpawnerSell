@@ -37,6 +37,7 @@ public final class MLSpawnerSell extends JavaPlugin implements CommandExecutor {
         // Register commands
         getCommand("sellspawner").setExecutor(this);
         getCommand("spvalue").setExecutor(this);
+        getCommand("spvalueall").setExecutor(this);
 
         getLogger().info("MLSpawnerSell has been enabled!");
     }
@@ -74,9 +75,14 @@ public final class MLSpawnerSell extends JavaPlugin implements CommandExecutor {
         if (commandName.equals("sellspawner") && !player.hasPermission("mlspawnersell.sell")) {
             player.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
             return true;
-        } else if (commandName.equals("spvalue") && !player.hasPermission("mlspawnersell.value")) {
+        } else if ((commandName.equals("spvalue") || commandName.equals("spvalueall")) && !player.hasPermission("mlspawnersell.value")) {
             player.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
             return true;
+        }
+
+        // Handle spvalueall command separately
+        if (commandName.equals("spvalueall")) {
+            return handleSpValueAll(player);
         }
 
         // Get the item in the player's hand
@@ -96,164 +102,7 @@ public final class MLSpawnerSell extends JavaPlugin implements CommandExecutor {
         }
 
         // Get spawner count (for WildStacker)
-        int spawnerCount = 1;
-        if (getServer().getPluginManager().isPluginEnabled("WildStacker")) {
-            try {
-                // Try to get the stack amount from WildStacker
-                // WildStacker typically stores stack information in item lore or NBT data
-
-                // First approach: Check if the item has lore that might contain stack info
-                if (itemInHand.hasItemMeta() && itemInHand.getItemMeta().hasLore()) {
-                    for (String loreLine : itemInHand.getItemMeta().getLore()) {
-                        // Common patterns in stacking plugins:
-                        // "Amount: X", "Stack: X", "x5", etc.
-                        String loreLC = ChatColor.stripColor(loreLine).toLowerCase();
-
-                        // Pattern 1: "Amount: X" or "Stack: X"
-                        if (loreLC.contains("amount:") || loreLC.contains("stack:")) {
-                            String[] parts = loreLC.split(":");
-                            if (parts.length > 1) {
-                                String amountStr = parts[1].trim();
-                                try {
-                                    int amount = Integer.parseInt(amountStr.replaceAll("[^0-9]", ""));
-                                    if (amount > 1) {
-                                        spawnerCount = amount;
-                                        break;
-                                    }
-                                } catch (NumberFormatException ignored) {
-                                    // Not a number, continue checking
-                                }
-                            }
-                        }
-
-                        // Pattern 2: "x5" (common in many stacking plugins)
-                        if (loreLC.contains("x")) {
-                            String[] parts = loreLC.split("x");
-                            if (parts.length > 1) {
-                                try {
-                                    String amountStr = parts[parts.length - 1].trim();
-                                    int amount = Integer.parseInt(amountStr.replaceAll("[^0-9]", ""));
-                                    if (amount > 1) {
-                                        spawnerCount = amount;
-                                        break;
-                                    }
-                                } catch (NumberFormatException ignored) {
-                                    // Not a number, continue checking
-                                }
-                            }
-                        }
-
-                        // Pattern 3: Just a number (some plugins just add the number)
-                        try {
-                            String amountStr = loreLC.trim();
-                            if (amountStr.matches("\\d+")) {
-                                int amount = Integer.parseInt(amountStr);
-                                if (amount > 1) {
-                                    spawnerCount = amount;
-                                    break;
-                                }
-                            }
-                        } catch (NumberFormatException ignored) {
-                            // Not a number, continue checking
-                        }
-                    }
-                }
-
-                // Second approach: Check if the item has display name that might contain stack info
-                if (spawnerCount <= 1 && itemInHand.hasItemMeta() && itemInHand.getItemMeta().hasDisplayName()) {
-                    String rawDisplayName = itemInHand.getItemMeta().getDisplayName();
-                    String displayName = ChatColor.stripColor(rawDisplayName);
-
-                    // Pattern 1: "Name x5"
-                    if (displayName.contains(" x")) {
-                        String[] parts = displayName.split(" x");
-                        if (parts.length > 1) {
-                            try {
-                                int amount = Integer.parseInt(parts[parts.length - 1].trim());
-                                if (amount > 1) {
-                                    spawnerCount = amount;
-                                }
-                            } catch (NumberFormatException ignored) {
-                                // Not a number, continue with other methods
-                            }
-                        }
-                    }
-
-                    // Pattern 2: "Name (5)"
-                    if (displayName.contains("(") && displayName.contains(")")) {
-                        int openIndex = displayName.lastIndexOf("(");
-                        int closeIndex = displayName.lastIndexOf(")");
-                        if (openIndex < closeIndex) {
-                            try {
-                                String amountStr = displayName.substring(openIndex + 1, closeIndex).trim();
-                                int amount = Integer.parseInt(amountStr);
-                                if (amount > 1) {
-                                    spawnerCount = amount;
-                                }
-                            } catch (NumberFormatException ignored) {
-                                // Not a number, continue with other methods
-                            }
-                        }
-                    }
-
-                    // Pattern 3: "2x Pig Spawners" (number at the beginning followed by 'x')
-                    if (displayName.matches("^\\d+x.*")) {
-                        try {
-                            String amountStr = displayName.split("x")[0].trim();
-                            int amount = Integer.parseInt(amountStr);
-                            if (amount > 1) {
-                                spawnerCount = amount;
-                            }
-                        } catch (NumberFormatException ignored) {
-                            // Not a number, continue with other methods
-                        }
-                    }
-
-                    // Pattern 4: "x3 Piggy Spawners" ('x' followed by a number)
-                    if (displayName.matches("^x\\d+.*")) {
-                        try {
-                            String amountStr = displayName.substring(1).split(" ")[0].trim();
-                            int amount = Integer.parseInt(amountStr);
-                            if (amount > 1) {
-                                spawnerCount = amount;
-                            }
-                        } catch (NumberFormatException ignored) {
-                            // Not a number, continue with other methods
-                        }
-                    }
-                }
-
-                // Third approach: Try to use WildStacker API directly
-                if (spawnerCount <= 1) {
-                    try {
-                        // Try to use reflection to access the API method
-                        // This is a last resort approach
-                        Object stackedItem = WildStackerAPI.class.getMethod("getStackedItem", ItemStack.class).invoke(null, itemInHand);
-                        if (stackedItem != null) {
-                            int amount = (int) stackedItem.getClass().getMethod("getStackAmount").invoke(stackedItem);
-                            if (amount > 1) {
-                                spawnerCount = amount;
-                            }
-                        }
-                    } catch (Exception e) {
-                    }
-                }
-
-                // Fourth approach: Fall back to item amount if all else fails
-                if (spawnerCount <= 1) {
-                    spawnerCount = Math.max(itemInHand.getAmount(), 1);
-                } else {
-                    // Multiply stack size by item amount to get total number of spawners
-                    spawnerCount = spawnerCount * itemInHand.getAmount();
-                }
-            } catch (Exception e) {
-                // If there's an error with any of the approaches, fall back to item amount
-                spawnerCount = Math.max(itemInHand.getAmount(), 1);
-            }
-        } else {
-            // If WildStacker is not enabled, just use the regular item amount
-            spawnerCount = Math.max(itemInHand.getAmount(), 1);
-        }
+        int spawnerCount = getSpawnerCount(itemInHand);
 
         // Calculate price
         String spawnerTypeName = spawnerType.name();
@@ -339,5 +188,243 @@ public final class MLSpawnerSell extends JavaPlugin implements CommandExecutor {
         }
 
         return result.toString().trim();
+    }
+
+    private boolean handleSpValueAll(Player player) {
+        // Get all items in the player's inventory
+        ItemStack[] inventoryContents = player.getInventory().getContents();
+
+        // Variables to track total value and spawner counts
+        double totalValue = 0;
+        int totalSpawnerCount = 0;
+        java.util.Map<String, Integer> spawnerCounts = new java.util.HashMap<>();
+
+        // Check each item in the inventory
+        for (ItemStack item : inventoryContents) {
+            // Skip null items or non-spawners
+            if (item == null || item.getType() != Material.SPAWNER) {
+                continue;
+            }
+
+            // Get spawner type
+            EntityType spawnerType = getSpawnerType(item);
+            if (spawnerType == null) {
+                continue;
+            }
+
+            // Get spawner count (for WildStacker)
+            int spawnerCount = getSpawnerCount(item);
+
+            // Calculate price
+            String spawnerTypeName = spawnerType.name();
+
+            // Try to find the spawner type in the config (case-insensitive)
+            String configKey = null;
+
+            for (String key : config.getKeys(false)) {
+                if (key.equalsIgnoreCase(spawnerTypeName)) {
+                    configKey = key;
+                    break;
+                }
+            }
+
+            if (configKey == null) {
+                // Skip spawners that can't be sold
+                continue;
+            }
+
+            double pricePerSpawner = config.getDoubleList(configKey).get(0);
+            double itemTotalPrice = pricePerSpawner * spawnerCount;
+
+            // Add to total value
+            totalValue += itemTotalPrice;
+            totalSpawnerCount += spawnerCount;
+
+            // Track count by type
+            String formattedName = formatSpawnerName(spawnerTypeName);
+            spawnerCounts.put(formattedName, spawnerCounts.getOrDefault(formattedName, 0) + spawnerCount);
+        }
+
+        // Display results to player
+        if (totalSpawnerCount == 0) {
+            player.sendMessage(ChatColor.RED + "You don't have any spawners in your inventory.");
+            return true;
+        }
+
+        // Display total value
+        player.sendMessage(ChatColor.GREEN + "Total value of all spawners: " + economy.format(totalValue));
+
+        // Display breakdown by type
+        player.sendMessage(ChatColor.GREEN + "Spawner breakdown:");
+        for (java.util.Map.Entry<String, Integer> entry : spawnerCounts.entrySet()) {
+            player.sendMessage(ChatColor.GREEN + "  " + entry.getValue() + " " + entry.getKey() + 
+                    " spawner" + (entry.getValue() > 1 ? "s" : ""));
+        }
+
+        return true;
+    }
+
+    private int getSpawnerCount(ItemStack spawner) {
+        int spawnerCount = 1;
+
+        if (getServer().getPluginManager().isPluginEnabled("WildStacker")) {
+            try {
+                // Try to get the stack amount from WildStacker
+                // WildStacker typically stores stack information in item lore or NBT data
+
+                // First approach: Check if the item has lore that might contain stack info
+                if (spawner.hasItemMeta() && spawner.getItemMeta().hasLore()) {
+                    for (String loreLine : spawner.getItemMeta().getLore()) {
+                        // Common patterns in stacking plugins:
+                        // "Amount: X", "Stack: X", "x5", etc.
+                        String loreLC = ChatColor.stripColor(loreLine).toLowerCase();
+
+                        // Pattern 1: "Amount: X" or "Stack: X"
+                        if (loreLC.contains("amount:") || loreLC.contains("stack:")) {
+                            String[] parts = loreLC.split(":");
+                            if (parts.length > 1) {
+                                String amountStr = parts[1].trim();
+                                try {
+                                    int amount = Integer.parseInt(amountStr.replaceAll("[^0-9]", ""));
+                                    if (amount > 1) {
+                                        spawnerCount = amount;
+                                        break;
+                                    }
+                                } catch (NumberFormatException ignored) {
+                                    // Not a number, continue checking
+                                }
+                            }
+                        }
+
+                        // Pattern 2: "x5" (common in many stacking plugins)
+                        if (loreLC.contains("x")) {
+                            String[] parts = loreLC.split("x");
+                            if (parts.length > 1) {
+                                try {
+                                    String amountStr = parts[parts.length - 1].trim();
+                                    int amount = Integer.parseInt(amountStr.replaceAll("[^0-9]", ""));
+                                    if (amount > 1) {
+                                        spawnerCount = amount;
+                                        break;
+                                    }
+                                } catch (NumberFormatException ignored) {
+                                    // Not a number, continue checking
+                                }
+                            }
+                        }
+
+                        // Pattern 3: Just a number (some plugins just add the number)
+                        try {
+                            String amountStr = loreLC.trim();
+                            if (amountStr.matches("\\d+")) {
+                                int amount = Integer.parseInt(amountStr);
+                                if (amount > 1) {
+                                    spawnerCount = amount;
+                                    break;
+                                }
+                            }
+                        } catch (NumberFormatException ignored) {
+                            // Not a number, continue checking
+                        }
+                    }
+                }
+
+                // Second approach: Check if the item has display name that might contain stack info
+                if (spawnerCount <= 1 && spawner.hasItemMeta() && spawner.getItemMeta().hasDisplayName()) {
+                    String rawDisplayName = spawner.getItemMeta().getDisplayName();
+                    String displayName = ChatColor.stripColor(rawDisplayName);
+
+                    // Pattern 1: "Name x5"
+                    if (displayName.contains(" x")) {
+                        String[] parts = displayName.split(" x");
+                        if (parts.length > 1) {
+                            try {
+                                int amount = Integer.parseInt(parts[parts.length - 1].trim());
+                                if (amount > 1) {
+                                    spawnerCount = amount;
+                                }
+                            } catch (NumberFormatException ignored) {
+                                // Not a number, continue with other methods
+                            }
+                        }
+                    }
+
+                    // Pattern 2: "Name (5)"
+                    if (displayName.contains("(") && displayName.contains(")")) {
+                        int openIndex = displayName.lastIndexOf("(");
+                        int closeIndex = displayName.lastIndexOf(")");
+                        if (openIndex < closeIndex) {
+                            try {
+                                String amountStr = displayName.substring(openIndex + 1, closeIndex).trim();
+                                int amount = Integer.parseInt(amountStr);
+                                if (amount > 1) {
+                                    spawnerCount = amount;
+                                }
+                            } catch (NumberFormatException ignored) {
+                                // Not a number, continue with other methods
+                            }
+                        }
+                    }
+
+                    // Pattern 3: "2x Pig Spawners" (number at the beginning followed by 'x')
+                    if (displayName.matches("^\\d+x.*")) {
+                        try {
+                            String amountStr = displayName.split("x")[0].trim();
+                            int amount = Integer.parseInt(amountStr);
+                            if (amount > 1) {
+                                spawnerCount = amount;
+                            }
+                        } catch (NumberFormatException ignored) {
+                            // Not a number, continue with other methods
+                        }
+                    }
+
+                    // Pattern 4: "x3 Piggy Spawners" ('x' followed by a number)
+                    if (displayName.matches("^x\\d+.*")) {
+                        try {
+                            String amountStr = displayName.substring(1).split(" ")[0].trim();
+                            int amount = Integer.parseInt(amountStr);
+                            if (amount > 1) {
+                                spawnerCount = amount;
+                            }
+                        } catch (NumberFormatException ignored) {
+                            // Not a number, continue with other methods
+                        }
+                    }
+                }
+
+                // Third approach: Try to use WildStacker API directly
+                if (spawnerCount <= 1) {
+                    try {
+                        // Try to use reflection to access the API method
+                        // This is a last resort approach
+                        Object stackedItem = WildStackerAPI.class.getMethod("getStackedItem", ItemStack.class).invoke(null, spawner);
+                        if (stackedItem != null) {
+                            int amount = (int) stackedItem.getClass().getMethod("getStackAmount").invoke(stackedItem);
+                            if (amount > 1) {
+                                spawnerCount = amount;
+                            }
+                        }
+                    } catch (Exception e) {
+                    }
+                }
+
+                // Fourth approach: Fall back to item amount if all else fails
+                if (spawnerCount <= 1) {
+                    spawnerCount = Math.max(spawner.getAmount(), 1);
+                } else {
+                    // Multiply stack size by item amount to get total number of spawners
+                    spawnerCount = spawnerCount * spawner.getAmount();
+                }
+            } catch (Exception e) {
+                // If there's an error with any of the approaches, fall back to item amount
+                spawnerCount = Math.max(spawner.getAmount(), 1);
+            }
+        } else {
+            // If WildStacker is not enabled, just use the regular item amount
+            spawnerCount = Math.max(spawner.getAmount(), 1);
+        }
+
+        return spawnerCount;
     }
 }

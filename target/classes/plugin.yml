@@ -2,6 +2,7 @@ name: MLSpawnerSell
 version: '1.0'
 main: eu.minelife.mLSpawnerSell.MLSpawnerSell
 api-version: '1.21'
+author: Sckaletz
 depend: [Vault, WildStacker]
 commands:
   sellspawner:
@@ -11,6 +12,10 @@ commands:
   spvalue:
     description: Check the value of the spawner you are holding
     usage: /spvalue
+    permission: mlspawnersell.value
+  spvalueall:
+    description: Check the value of all spawners in your inventory
+    usage: /spvalueall
     permission: mlspawnersell.value
 permissions:
   mlspawnersell.sell:

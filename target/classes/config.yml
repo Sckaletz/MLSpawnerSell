@@ -1,3 +1,11 @@
+# Commands and Permissions
+
+# /SellSpawner: Sell the spawner you are holding
+# /SpValue: Check the value of the spawner you are holding
+
+# mlmlspawnersell.sell
+# mlmlspawnersell.value
+
 PIG:
   - 25000
 SHEEP:

@@ -13,6 +13,10 @@ commands:
     description: Check the value of the spawner you are holding
     usage: /spvalue
     permission: mlspawnersell.value
+  spvalueall:
+    description: Check the value of all spawners in your inventory
+    usage: /spvalueall
+    permission: mlspawnersell.value
 permissions:
   mlspawnersell.sell:
     description: Allows players to sell spawners
